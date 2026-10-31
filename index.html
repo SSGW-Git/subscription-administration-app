@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ee6a98">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="サブスク">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>サブスク月額まとめ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: 1カラムの家計簿風。上に月額合計と内訳バー、下に契約一覧。追加フォームは一覧の上に開く。 */
+:root {
+  --bg: #fff3f6;
+  --surface: #ffffff;
+  --fg: #4a3844;
+  --muted: #9b8493;
+  --line: #f6dfe7;
+  --accent: #ee6a98;
+  --accent-fg: #ffffff;
+  --soft: #ffe3ec;
+  --warn: #c8641c;
+  --warn-soft: #fff0dc;
+  --c1: #f58fb0; --c2: #8dbaf2; --c3: #ffb56b; --c4: #b69af2; --c5: #77d1ad; --c6: #cdbcc6;
+  --font: "Zen Maru Gothic", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #2b2031; --surface: #3a2d43; --fg: #fdebf2; --muted: #c7aebd; --line: #4f3d5a;
+    --accent: #ff8fb7; --accent-fg: #3d1628; --soft: #4d3253; --warn: #ffb36b; --warn-soft: #4a3320;
+    --c1: #ff9fbd; --c2: #9cc4f5; --c3: #ffbf80; --c4: #c7aef7; --c5: #8fdcba; --c6: #b8a6b2;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #2b2031; --surface: #3a2d43; --fg: #fdebf2; --muted: #c7aebd; --line: #4f3d5a;
+    --accent: #ff8fb7; --accent-fg: #3d1628; --soft: #4d3253; --warn: #ffb36b; --warn-soft: #4a3320;
+    --c1: #ff9fbd; --c2: #9cc4f5; --c3: #ffbf80; --c4: #c7aef7; --c5: #8fdcba; --c6: #b8a6b2;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.6;
+  padding-top: max(24px, env(safe-area-inset-top, 0px)); padding-bottom: max(48px, env(safe-area-inset-bottom, 0px)); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 15px; font-weight: 700; margin: 0; color: var(--muted); letter-spacing: .04em; }
+.num { font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.hero { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.hero-top { display: flex; flex-wrap: wrap; gap: 8px 32px; align-items: flex-end; justify-content: space-between; }
+.label { font-size: 12px; color: var(--muted); letter-spacing: .06em; }
+.big { font-size: clamp(40px, 11vw, 60px); font-weight: 900; line-height: 1.1; letter-spacing: -.01em; }
+.big small { font-size: .4em; font-weight: 700; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.subs { display: flex; gap: 24px; flex-wrap: wrap; }
+.subs div { min-width: 0; }
+.subs b { display: block; font-size: 18px; font-weight: 700; }
+
+.bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--line); gap: 2px; }
+.bar i { display: block; min-width: 3px; }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px 24px; margin: 0; padding: 0; list-style: none; }
+.legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
+.legend .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend .nm { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.legend .pc { color: var(--muted); width: 3em; text-align: right; }
+
+.sample { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 500; }
+.sample button { background: transparent; border: 1px solid currentColor; border-radius: 6px; padding: 4px 12px; color: inherit; font-size: 13px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 8px; padding: 9px 18px; font-weight: 700; }
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+form.panel { background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+form.panel .full { grid-column: 1 / -1; }
+form.panel label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500; }
+form.panel input, form.panel select { font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+.row-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.err { color: var(--warn); font-size: 13px; min-height: 1.2em; margin: 0; }
+@media (max-width: 480px) { form.panel { grid-template-columns: 1fr; } }
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 14px 16px; border-top: 1px solid var(--line); align-items: center; }
+.item:first-child { border-top: 0; }
+.item.off { opacity: .55; }
+.nm { font-weight: 700; display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.nm .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.meta { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: center; }
+.tag { background: var(--soft); color: var(--accent); border-radius: 4px; padding: 0 6px; font-size: 11.5px; font-weight: 700; }
+.tag.soon { background: var(--warn-soft); color: var(--warn); }
+.amt { text-align: right; font-weight: 700; font-size: 18px; white-space: nowrap; }
+.amt small { color: var(--muted); font-weight: 500; font-size: 12px; }
+.acts { grid-column: 1 / -1; display: flex; gap: 14px; justify-content: flex-end; }
+.acts button { background: none; border: 0; padding: 2px 0; font-size: 12.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.acts button.danger { color: var(--warn); font-weight: 700; }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+.foot { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* かわいい仕上げ */
+body { background-image: radial-gradient(circle at 12% 0%, var(--soft) 0, transparent 38%), radial-gradient(circle at 100% 8%, var(--soft) 0, transparent 30%); background-attachment: fixed; }
+h1 { font-size: 17px; color: var(--accent); font-weight: 900; letter-spacing: .06em; }
+h1::before { content: "✿ "; }
+h1::after { content: " ✿"; }
+.hero { border-radius: 24px; border: 2px solid var(--line); background: linear-gradient(135deg, var(--surface) 55%, var(--soft)); box-shadow: 0 6px 0 var(--line); }
+.big { color: var(--accent); }
+.bar { height: 16px; border-radius: 999px; padding: 2px; background: var(--soft); }
+.bar i { border-radius: 999px; }
+.legend .dot, .nm .dot { border-radius: 50%; }
+.sample { border-radius: 16px; }
+.sample button, .chip { border-radius: 999px; }
+.chip { border-width: 2px; background: var(--surface); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn { border-radius: 999px; box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 70%, #000 30%); transition: transform .08s, box-shadow .08s; }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 70%, #000 30%); }
+.btn.ghost { box-shadow: none; border-width: 2px; background: var(--surface); }
+form.panel { border-radius: 24px; border: 2px solid var(--accent); box-shadow: 0 6px 0 var(--soft); }
+form.panel input, form.panel select { border-radius: 14px; border: 2px solid var(--line); background: var(--surface); }
+form.panel input:focus, form.panel select:focus { border-color: var(--accent); outline: none; }
+.list { border-radius: 24px; border: 2px solid var(--line); box-shadow: 0 6px 0 var(--line); }
+.item { border-top: 2px dashed var(--line); padding: 16px 18px; }
+.item:first-child { border-top: 0; }
+.amt { color: var(--accent); }
+.tag { border-radius: 999px; padding: 0 9px; }
+.empty::before { content: "(˘ω˘) "; display: block; font-size: 22px; margin-bottom: 6px; }
+.foot { justify-content: center; text-align: center; }
+@media (prefers-reduced-motion: no-preference) { .bar i { transition: flex-basis .3s; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <h1>サブスク月額まとめ</h1>
+
+  <section class="hero" aria-live="polite">
+    <div class="hero-top">
+      <div>
+        <div class="label">毎月の支払い合計</div>
+        <div class="big num" id="total">¥0<small>/月</small></div>
+      </div>
+      <div class="subs">
+        <div><span class="label">年間にすると</span><b class="num" id="yearly">¥0</b></div>
+        <div><span class="label">1日あたり</span><b class="num" id="daily">¥0</b></div>
+        <div><span class="label">契約中</span><b class="num" id="count">0件</b></div>
+      </div>
+    </div>
+    <div class="bar" id="bar" role="img" aria-label="カテゴリ別の月額の割合"></div>
+    <ul class="legend" id="legend"></ul>
+  </section>
+
+  <div class="sample" id="sampleNote" hidden>
+    <span>表示中の項目はサンプルです。自分の分を入力する前に消せます。</span>
+    <button type="button" id="clearSample">サンプルをすべて削除</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="chips" id="sorts" role="group" aria-label="並び替え">
+      <button type="button" class="chip" data-sort="amount" aria-pressed="true">月額が高い順</button>
+      <button type="button" class="chip" data-sort="next" aria-pressed="false">次の支払日順</button>
+      <button type="button" class="chip" data-sort="name" aria-pressed="false">名前順</button>
+    </div>
+    <button type="button" class="btn" id="addBtn">＋ サブスクを追加</button>
+  </div>
+
+  <form class="panel" id="form" hidden novalidate>
+    <label class="full" for="f-name">サービス名
+      <input id="f-name" type="text" maxlength="60" placeholder="例：Netflix" autocomplete="off">
+    </label>
+    <label for="f-price">1回の支払い額（円）
+      <input id="f-price" type="number" inputmode="numeric" min="0" step="1" placeholder="1490">
+    </label>
+    <label for="f-cycle">支払いの周期
+      <select id="f-cycle"></select>
+    </label>
+    <label for="f-cat">カテゴリ
+      <select id="f-cat"></select>
+    </label>
+    <label for="f-date">直近の支払日（任意）
+      <input id="f-date" type="date">
+    </label>
+    <p class="err full" id="err" role="alert"></p>
+    <div class="row-actions full">
+      <button type="button" class="btn ghost" id="cancelBtn">キャンセル</button>
+      <button type="submit" class="btn" id="saveBtn">追加する</button>
+    </div>
+  </form>
+
+  <ul class="list" id="list"></ul>
+
+  <div class="foot">
+    <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="showOff"> 停止中のサブスクも表示</label>
+    <span id="status">読み込み中…</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var CYCLES = {
+    weekly:    { label: '毎週',     perMonth: 52 / 12, months: 0 },
+    monthly:   { label: '毎月',     perMonth: 1,       months: 1 },
+    quarterly: { label: '3か月ごと', perMonth: 1 / 3,   months: 3 },
+    halfyear:  { label: '半年ごと',  perMonth: 1 / 6,   months: 6 },
+    yearly:    { label: '毎年',     perMonth: 1 / 12,  months: 12 }
+  };
+  var CATS = {
+    video:  { label: '動画・音楽',    color: 'var(--c1)' },
+    work:   { label: '仕事・学習',    color: 'var(--c2)' },
+    game:   { label: 'ゲーム',        color: 'var(--c3)' },
+    cloud:  { label: 'クラウド・ツール', color: 'var(--c4)' },
+    life:   { label: '生活・その他',   color: 'var(--c5)' },
+    other:  { label: '未分類',        color: 'var(--c6)' }
+  };
+  var LS = 'subscription-app-items-v1';
+
+  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function daysFromToday(n) { var d = new Date(); d.setDate(d.getDate() + n); return ymd(d); }
+  function monthsAgo(n, day) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - n); d.setDate(day); return ymd(d); }
+  function sampleItems() {
+    return [
+      { id: 's1', sample: true, name: '動画配信サービス', price: 1490, cycle: 'monthly', cat: 'video', date: daysFromToday(4), active: true },
+      { id: 's2', sample: true, name: '音楽ストリーミング', price: 1080, cycle: 'monthly', cat: 'video', date: daysFromToday(12), active: true },
+      { id: 's3', sample: true, name: '通販プライム会員', price: 5900, cycle: 'yearly', cat: 'life', date: monthsAgo(5, 15), active: true },
+      { id: 's4', sample: true, name: 'クラウドストレージ', price: 130, cycle: 'monthly', cat: 'cloud', date: daysFromToday(20), active: true },
+      { id: 's5', sample: true, name: 'オンライン英会話', price: 6480, cycle: 'monthly', cat: 'work', date: daysFromToday(9), active: false }
+    ];
+  }
+
+  var state = { items: null, sort: 'amount', showOff: false, editing: null, cloud: false };
+  var ref = null, saving = false, dirty = false, lastJson = '';
+
+  var $ = function (s) { return document.querySelector(s); };
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function yen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+  function monthly(it) { return it.price * CYCLES[it.cycle].perMonth; }
+
+  function nextDate(it) {
+    if (!it.date) return null;
+    var base = new Date(it.date + 'T00:00:00');
+    if (isNaN(base)) return null;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var c = CYCLES[it.cycle];
+    if (!c.months) {
+      var d = new Date(base);
+      if (d < today) { var k = Math.ceil((today - d) / (7 * 864e5)); d.setDate(d.getDate() + k * 7); }
+      return d;
+    }
+    var n = 0, cand = base;
+    while (cand < today && n < 2000) {
+      n++;
+      cand = new Date(base.getFullYear(), base.getMonth() + n * c.months, 1);
+      var last = new Date(cand.getFullYear(), cand.getMonth() + 1, 0).getDate();
+      cand.setDate(Math.min(base.getDate(), last));
+    }
+    return cand;
+  }
+  function daysUntil(d) { var t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((d - t) / 864e5); }
+
+  /* ---- 保存 ---- */
+  function setStatus() {
+    $('#status').textContent = state.cloud ? '保存済み（アカウントに保存・他の端末でも同じ内容）' : 'この端末のブラウザに保存';
+  }
+  function loadLocal() {
+    try { var r = localStorage.getItem(LS); if (r) { var v = JSON.parse(r); if (Array.isArray(v)) return v; } } catch (e) {}
+    return null;
+  }
+  async function persist() {
+    var json = JSON.stringify(state.items);
+    lastJson = json;
+    try { localStorage.setItem(LS, json); } catch (e) {}
+    if (!ref) return;
+    dirty = true;
+    if (saving) return;
+    saving = true;
+    while (dirty) {
+      dirty = false;
+      try { await ref.set({ v: 1, items: state.items }); state.cloud = true; }
+      catch (e) { state.cloud = false; }
+    }
+    saving = false;
+    setStatus();
+  }
+  async function connect() {
+    if (!window.claude || !window.claude.use) return;
+    try {
+      var db = await window.claude.use('db');
+      var user = await window.claude.use('user');
+      if (!db || !user) return;
+      var uid = await user.id();
+      if (!uid) return;
+      ref = db.doc('data/users/' + uid + '/profile');
+      ref.onSnapshot(function (snap) {
+        if (snap.metadata.hasPendingWrites) return;
+        state.cloud = true;
+        if (snap.exists) {
+          var items = snap.data().items;
+          if (Array.isArray(items) && JSON.stringify(items) !== lastJson) {
+            state.items = items; lastJson = JSON.stringify(items);
+            try { localStorage.setItem(LS, lastJson); } catch (e) {}
+          }
+        } else if (loadLocal()) { persist(); }
+        setStatus(); render();
+      }, function () { state.cloud = false; setStatus(); });
+    } catch (e) {}
+  }
+
+  /* ---- 描画 ---- */
+  function render() {
+    var all = state.items;
+    var live = all.filter(function (i) { return i.active; });
+    var total = live.reduce(function (s, i) { return s + monthly(i); }, 0);
+    $('#total').innerHTML = yen(total) + '<small>/月</small>';
+    $('#yearly').textContent = yen(total * 12);
+    $('#daily').textContent = yen(total * 12 / 365);
+    $('#count').textContent = live.length + '件';
+    $('#sampleNote').hidden = !all.some(function (i) { return i.sample; });
+
+    var byCat = {};
+    live.forEach(function (i) { byCat[i.cat] = (byCat[i.cat] || 0) + monthly(i); });
+    var cats = Object.keys(byCat).sort(function (a, b) { return byCat[b] - byCat[a]; });
+    $('#bar').innerHTML = cats.map(function (k) {
+      return '<i style="flex:' + byCat[k] + ' 1 0;background:' + (CATS[k] || CATS.other).color + '"></i>';
+    }).join('');
+    $('#legend').innerHTML = cats.map(function (k) {
+      var c = CATS[k] || CATS.other;
+      return '<li><span class="dot" style="background:' + c.color + '"></span><span class="nm">' + esc(c.label) +
+        '</span><span class="num">' + yen(byCat[k]) + '</span><span class="pc num">' + Math.round(byCat[k] / total * 100) + '%</span></li>';
+    }).join('');
+
+    var rows = all.filter(function (i) { return state.showOff || i.active; });
+    rows.sort(function (a, b) {
+      if (state.sort === 'name') return a.name.localeCompare(b.name, 'ja');
+      if (state.sort === 'next') {
+        var da = nextDate(a), db = nextDate(b);
+        return (da ? da.getTime() : Infinity) - (db ? db.getTime() : Infinity);
+      }
+      return monthly(b) - monthly(a);
+    });
+    if (!rows.length) {
+      $('#list').innerHTML = '<li class="empty">まだサブスクがありません。「＋ サブスクを追加」から1件目を入力してください。</li>';
+      return;
+    }
+    $('#list').innerHTML = rows.map(function (it) {
+      var c = CATS[it.cat] || CATS.other, cy = CYCLES[it.cycle];
+      var nd = it.active ? nextDate(it) : null, nx = '';
+      if (nd) {
+        var n = daysUntil(nd);
+        nx = '<span>次回 ' + (nd.getMonth() + 1) + '/' + nd.getDate() + '（' + (n === 0 ? '今日' : 'あと' + n + '日') + '）</span>' +
+          (n <= 7 ? '<span class="tag soon">もうすぐ</span>' : '');
+      }
+      var perCycle = it.cycle === 'monthly' ? '' : '<span>' + cy.label + ' ' + yen(it.price) + '</span>';
+      var confirm = state.confirmId === it.id;
+      return '<li class="item' + (it.active ? '' : ' off') + '" data-id="' + esc(it.id) + '">' +
+        '<div><div class="nm"><span class="dot" style="background:' + c.color + '"></span>' + esc(it.name) +
+        (it.active ? '' : ' <span class="tag">停止中</span>') + (it.sample ? ' <span class="tag soon">サンプル</span>' : '') + '</div>' +
+        '<div class="meta"><span>' + esc(c.label) + '</span>' + perCycle + nx + '</div></div>' +
+        '<div class="amt num">' + yen(monthly(it)) + '<small>/月</small></div>' +
+        '<div class="acts">' +
+        '<button type="button" data-act="edit">編集</button>' +
+        '<button type="button" data-act="toggle">' + (it.active ? '停止にする' : '再開する') + '</button>' +
+        '<button type="button" data-act="del" class="' + (confirm ? 'danger' : '') + '">' + (confirm ? '本当に削除する' : '削除') + '</button>' +
+        '</div></li>';
+    }).join('');
+  }
+
+  /* ---- フォーム ---- */
+  function fillSelect(el, obj) { el.innerHTML = Object.keys(obj).map(function (k) { return '<option value="' + k + '">' + obj[k].label + '</option>'; }).join(''); }
+  fillSelect($('#f-cycle'), CYCLES); fillSelect($('#f-cat'), CATS);
+  $('#f-cycle').value = 'monthly';
+
+  function openForm(it) {
+    state.editing = it ? it.id : null;
+    $('#f-name').value = it ? it.name : '';
+    $('#f-price').value = it ? it.price : '';
+    $('#f-cycle').value = it ? it.cycle : 'monthly';
+    $('#f-cat').value = it ? it.cat : 'video';
+    $('#f-date').value = it && it.date ? it.date : '';
+    $('#saveBtn').textContent = it ? '更新する' : '追加する';
+    $('#err').textContent = '';
+    $('#form').hidden = false;
+    $('#f-name').focus();
+    $('#form').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function closeForm() { $('#form').hidden = true; state.editing = null; }
+
+  $('#addBtn').addEventListener('click', function () { openForm(null); });
+  $('#cancelBtn').addEventListener('click', closeForm);
+  $('#form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('#f-name').value.trim(), price = Number($('#f-price').value);
+    if (!name) { $('#err').textContent = 'サービス名を入力してください。'; $('#f-name').focus(); return; }
+    if ($('#f-price').value === '' || !isFinite(price) || price < 0) { $('#err').textContent = '支払い額を0以上の数字で入力してください。'; $('#f-price').focus(); return; }
+    var data = { name: name, price: Math.round(price), cycle: $('#f-cycle').value, cat: $('#f-cat').value, date: $('#f-date').value || '' };
+    if (state.editing) {
+      state.items = state.items.map(function (i) { return i.id === state.editing ? Object.assign({}, i, data) : i; });
+    } else {
+      var id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'i' + Date.now() + Math.random().toString(36).slice(2, 6);
+      state.items = state.items.concat([Object.assign({ id: id, active: true }, data)]);
+    }
+    closeForm(); render(); persist();
+  });
+
+  /* ---- 一覧の操作 ---- */
+  $('#list').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]'); if (!btn) return;
+    var li = btn.closest('.item'), id = li.getAttribute('data-id');
+    var it = state.items.filter(function (i) { return i.id === id; })[0]; if (!it) return;
+    var act = btn.getAttribute('data-act');
+    if (act !== 'del') state.confirmId = null;
+    if (act === 'edit') { openForm(it); }
+    else if (act === 'toggle') {
+      state.items = state.items.map(function (i) { return i.id === id ? Object.assign({}, i, { active: !i.active }) : i; });
+      render(); persist();
+    } else if (act === 'del') {
+      if (state.confirmId === id) {
+        state.confirmId = null;
+        state.items = state.items.filter(function (i) { return i.id !== id; });
+        render(); persist();
+      } else { state.confirmId = id; render(); }
+    }
+  });
+  $('#clearSample').addEventListener('click', function () {
+    state.items = state.items.filter(function (i) { return !i.sample; });
+    render(); persist();
+  });
+  $('#sorts').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-sort]'); if (!b) return;
+    state.sort = b.getAttribute('data-sort');
+    document.querySelectorAll('#sorts .chip').forEach(function (c) { c.setAttribute('aria-pressed', c === b ? 'true' : 'false'); });
+    render();
+  });
+  $('#showOff').addEventListener('change', function (e) { state.showOff = e.target.checked; render(); });
+
+  state.items = loadLocal() || sampleItems();
+  lastJson = JSON.stringify(state.items);
+  setStatus(); render();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
